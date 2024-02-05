@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Sprint_15_Filmoteca_Clean_Architecture</string>
+    <string name="nothing_found">По этому запросу ничего не найдено</string>
+    <string name="something_went_wrong">Что-то пошло не так..</string>
+    <string name="check_connection">Проверьте подключение к интернет</string>
+    <string name="servers_error">Ошибка сервера</string>
+</resources>
