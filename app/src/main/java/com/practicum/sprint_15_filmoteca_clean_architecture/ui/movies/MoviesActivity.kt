@@ -1,11 +1,9 @@
 package com.practicum.sprint_15_filmoteca_clean_architecture.ui.movies
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.PersistableBundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -13,32 +11,20 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.practicum.sprint_15_filmoteca_clean_architecture.MoviesApplication
-import com.practicum.sprint_15_filmoteca_clean_architecture.util.Creator
 import com.practicum.sprint_15_filmoteca_clean_architecture.ui.poster.PosterActivity
 import com.practicum.sprint_15_filmoteca_clean_architecture.R
 import com.practicum.sprint_15_filmoteca_clean_architecture.domain.models.Movie
-import com.practicum.sprint_15_filmoteca_clean_architecture.presentation.movies.MoviesSearchPresenter
-import com.practicum.sprint_15_filmoteca_clean_architecture.presentation.movies.MoviesView
+import com.practicum.sprint_15_filmoteca_clean_architecture.presentation.movies.MoviesSearchViewModel
 import com.practicum.sprint_15_filmoteca_clean_architecture.ui.movies.models.MoviesState
-import moxy.MvpActivity
-import moxy.MvpView
-import moxy.presenter.InjectPresenter
-import moxy.presenter.ProvidePresenter
 
-class MoviesActivity : MvpActivity(), MoviesView {
+class MoviesActivity : AppCompatActivity() {
 
-    @InjectPresenter
-    lateinit var moviesSearchPresenter: MoviesSearchPresenter
-
-    @ProvidePresenter
-    fun providePresenter(): MoviesSearchPresenter {
-        return Creator.provideMoviesSearchPresenter(
-            context = this.applicationContext
-        )
-    }
+    private lateinit var viewModel: MoviesSearchViewModel
 
     private lateinit var queryInput: EditText
     private lateinit var placeholderMessage: TextView
@@ -47,19 +33,32 @@ class MoviesActivity : MvpActivity(), MoviesView {
 
     private var textWatcher: TextWatcher? = null
 
-    private val adapterMovies = MoviesAdapter {
-        if (clickDebounce()) {
-            val intent = Intent(this, PosterActivity::class.java)
-            intent.putExtra("poster", it.image)
-            startActivity(intent)
+    private val adapterMovies = MoviesAdapter (
+        object : MoviesAdapter.MovieClickListener {
+            override fun onMovieClick(movie: Movie) {
+                if (clickDebounce())
+                {
+                    val intent = Intent(this@MoviesActivity, PosterActivity::class.java)
+                    intent.putExtra("poster", movie.image)
+                    startActivity(intent)
+                }
+            }
+
+            override fun onFavoriteToggleClick(movie: Movie) {
+                viewModel.toggleFavorite(movie)
+            }
+
         }
-    }
+    )
 
     private var isClickAllowed = true
 
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        viewModel = ViewModelProvider(this, MoviesSearchViewModel.getViewModelFactory())[MoviesSearchViewModel::class.java]
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_movies)
 
@@ -68,6 +67,13 @@ class MoviesActivity : MvpActivity(), MoviesView {
         moviesList = findViewById(R.id.locations)
         progressBar = findViewById(R.id.progressBar)
 
+        viewModel.observeState().observe(this) {
+            render(it)
+        }
+
+        viewModel.observeToastState().observe(this) {
+            showToast(it)
+        }
 
         moviesList.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
@@ -79,7 +85,7 @@ class MoviesActivity : MvpActivity(), MoviesView {
             }
 
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                moviesSearchPresenter?.searchDebounce(
+                viewModel?.searchDebounce(
                     p0?.toString() ?: ""
                 )
             }
@@ -97,10 +103,6 @@ class MoviesActivity : MvpActivity(), MoviesView {
             handler.postDelayed({ isClickAllowed = true }, CLICK_DEBOUNCE_DELAY)
         }
         return current
-    }
-
-    companion object {
-        private const val CLICK_DEBOUNCE_DELAY = 1000L
     }
 
     private fun showLoading() {
@@ -125,16 +127,20 @@ class MoviesActivity : MvpActivity(), MoviesView {
         adapterMovies.notifyDataSetChanged()
     }
 
-    override fun render(state: MoviesState) {
-        when {
-            state.isLoading -> showLoading()
-            state.message != null -> showError(state.message)
-            else -> showContent(state.movies)
+    private fun render(state: MoviesState) {
+        when (state) {
+            is MoviesState.Loading -> showLoading()
+            is MoviesState.Content -> showContent(state.movies)
+            is MoviesState.Error -> showError(state.errorMessage)
+            is MoviesState.Empty -> showError(state.message)
         }
     }
 
-    override fun showToast(message: String) {
+    private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
+    companion object {
+        private const val CLICK_DEBOUNCE_DELAY = 1000L
+    }
 }

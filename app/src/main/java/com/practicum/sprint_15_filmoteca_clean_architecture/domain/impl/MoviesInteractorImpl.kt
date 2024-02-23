@@ -2,6 +2,7 @@ package com.practicum.sprint_15_filmoteca_clean_architecture.domain.impl
 
 import com.practicum.sprint_15_filmoteca_clean_architecture.domain.api.MoviesInteractor
 import com.practicum.sprint_15_filmoteca_clean_architecture.domain.api.MoviesRepository
+import com.practicum.sprint_15_filmoteca_clean_architecture.domain.models.Movie
 import com.practicum.sprint_15_filmoteca_clean_architecture.util.Resource
 
 class MoviesInteractorImpl(private val repository: MoviesRepository) : MoviesInteractor {
@@ -19,5 +20,13 @@ class MoviesInteractorImpl(private val repository: MoviesRepository) : MoviesInt
             }
         }
         thread.start()
+    }
+
+    override fun addMovieToFavorites(movie: Movie) {
+        repository.addMovieToFavorites(movie)
+    }
+
+    override fun removeMovieFromFavorites(movie: Movie) {
+        repository.removeMovieFromFavorites(movie)
     }
 }
